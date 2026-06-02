@@ -11,5 +11,6 @@ namespace Survivor
         public float SpawnRadius;
         public float PlayerVelocity;
         public float MinCollisionDistance;
+        public float SpawnTime;
     }
 }

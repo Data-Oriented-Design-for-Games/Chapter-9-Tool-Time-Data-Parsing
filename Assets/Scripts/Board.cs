@@ -1,3 +1,4 @@
+using System;
 using CommonTools;
 using TMPro;
 using UnityEngine;
@@ -19,10 +20,10 @@ namespace Survivor
         Camera m_mainCamera;
         Vector2 m_mouseDownPos;
 
-        BoardGUI m_boardGUI;
-
         public GameObject InputCircleOut;
         public GameObject InputCircleIn;
+
+        BoardGUI m_boardGUI;
 
         GameData gameData;
         MetaData metaData;
@@ -37,7 +38,6 @@ namespace Survivor
             this.balance = balance;
 
             m_player = AssetManager.Instance.GetPlayerGameObject(SpriteParent);
-            m_player.transform.localPosition = Vector2.zero;
 
             m_enemyPool = new GameObject[balance.NumEnemies];
             for (int i = 0; i < balance.NumEnemies; i++)
@@ -53,25 +53,33 @@ namespace Survivor
             m_boardGUI.GameTimeText = guiRef.GetTextGUI("GameTime");
             guiRef.GetButton("Pause").onClick.AddListener(pauseGame);
 
-            m_player.SetActive(false);
             InputCircleOut.SetActive(false);
+
+            m_player.SetActive(false);
 
             hideUI();
         }
 
         public void StartGame()
         {
-            Logic.StartGame(gameData, balance);
+            float screenRatio = (float)Screen.width / (float)Screen.height;
+            Logic.StartGame(gameData, balance, m_mainCamera.orthographicSize, screenRatio);
         }
 
         public void Show()
         {
             for (int i = 0; i < balance.NumEnemies; i++)
+                m_enemyPool[i].SetActive(false);
+
+            for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
-                m_enemyPool[i].transform.localPosition = gameData.EnemyPosition[i];
-                m_enemyPool[i].SetActive(true);
+                int enemyIndex = gameData.AliveEnemyIndices[i];
+                m_enemyPool[enemyIndex].SetActive(true);
             }
+
             m_player.SetActive(true);
+
+            InputCircleOut.SetActive(false);
 
             m_boardGUI.UI.SetActive(true);
         }
@@ -80,7 +88,10 @@ namespace Survivor
         {
             for (int i = 0; i < balance.NumEnemies; i++)
                 m_enemyPool[i].SetActive(false);
+
             m_player.SetActive(false);
+
+            InputCircleOut.SetActive(false);
 
             hideUI();
         }
@@ -88,6 +99,8 @@ namespace Survivor
         public void hideUI()
         {
             m_boardGUI.UI.SetActive(false);
+
+            InputCircleOut.SetActive(false);
         }
 
         public void Tick(float dt)
@@ -95,10 +108,40 @@ namespace Survivor
             handleInput();
 
             bool isGameOver;
-            Logic.Tick(metaData, gameData, balance, dt, out isGameOver);
 
-            for (int i = 0; i < balance.NumEnemies; i++)
-                m_enemyPool[i].transform.localPosition = gameData.EnemyPosition[i];
+            Span<int> removedEnemyIndices = stackalloc int[balance.NumEnemies];
+            int removedEnemyCount = 0;
+            Span<int> addedEnemyIndices = stackalloc int[balance.NumEnemies];
+            int addedEnemyCount = 0;
+            Logic.Tick(
+                metaData,
+                gameData,
+                balance,
+                dt,
+                out isGameOver,
+                addedEnemyIndices,
+                ref addedEnemyCount,
+                removedEnemyIndices,
+                ref removedEnemyCount
+                );
+
+            for (int i = 0; i < addedEnemyCount; i++)
+            {
+                int enemyIndex = addedEnemyIndices[i];
+                m_enemyPool[enemyIndex].SetActive(true);
+            }
+
+            for (int i = 0; i < removedEnemyCount; i++)
+            {
+                int enemyIndex = removedEnemyIndices[i];
+                m_enemyPool[enemyIndex].SetActive(false);
+            }
+
+            for (int i = 0; i < gameData.AliveEnemyCount; i++)
+            {
+                int enemyIndex = gameData.AliveEnemyIndices[i];
+                m_enemyPool[enemyIndex].transform.localPosition = gameData.EnemyPosition[enemyIndex];
+            }
 
             m_boardGUI.GameTimeText.text = CommonVisual.GetTimeElapsedString(gameData.GameTime);
 
@@ -125,23 +168,20 @@ mousePosition = Input.GetTouch(0).position;
             Vector2 mouseLocalPos = SpriteParent.InverseTransformPoint(mouseWorldPos);
 
             if (mouseDown)
-
             {
                 InputCircleOut.SetActive(true);
                 m_mouseDownPos = mouseLocalPos;
+                InputCircleOut.transform.position = m_mouseDownPos;
             }
-
             if (mouseMove)
             {
-                InputCircleOut.transform.position = m_mouseDownPos;
-                Vector2 diff = (mouseLocalPos - m_mouseDownPos);
+                Vector2 diff = mouseLocalPos - m_mouseDownPos;
                 float dist = diff.magnitude;
                 if (dist > 1.0f)
                     dist = 1.0f;
-                InputCircleIn.transform.localPosition = (mouseLocalPos - m_mouseDownPos).normalized * dist * ((1.0f - InputCircleIn.transform.localScale.x) / 2.0f);
+                InputCircleIn.transform.localPosition = diff.normalized * dist * ((1.0f - InputCircleIn.transform.localScale.x) / 2.0f);
                 Logic.MouseMove(gameData, m_mouseDownPos, mouseLocalPos);
             }
-            
             if (mouseUp)
             {
                 InputCircleOut.SetActive(false);
@@ -152,6 +192,7 @@ mousePosition = Input.GetTouch(0).position;
         void gameOver()
         {
             Game.Instance.SetMenuState(MENU_STATE.GAME_OVER);
+            GameDataIO.SaveLocal(gameData, balance);
             MetaDataIO.Save(metaData);
             hideUI();
         }
@@ -159,7 +200,7 @@ mousePosition = Input.GetTouch(0).position;
         void pauseGame()
         {
             Game.Instance.SetMenuState(MENU_STATE.PAUSE_MENU);
-            GameDataIO.Save(gameData, balance);
+            GameDataIO.SaveLocal(gameData, balance);
             MetaDataIO.Save(metaData);
         }
     }

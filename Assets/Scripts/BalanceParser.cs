@@ -63,6 +63,7 @@ namespace Survivor
                     bw.Write(balanceSO.SpawnRadius);
                     bw.Write(balanceSO.PlayerVelocity);
                     bw.Write(balanceSO.MinCollisionDistance);
+                    bw.Write(balanceSO.SpawnTime);
 
                     int magic = 123456789;
                     bw.Write(magic);

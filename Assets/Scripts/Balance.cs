@@ -15,6 +15,7 @@ namespace Survivor
         public float SpawnRadius;
         public float PlayerVelocity;
         public float MinCollisionDistance;
+        public float SpawnTime;
 
         public void LoadBalance()
         {
@@ -35,6 +36,7 @@ namespace Survivor
                 SpawnRadius = br.ReadSingle();
                 PlayerVelocity = br.ReadSingle();
                 MinCollisionDistance = br.ReadSingle();
+                SpawnTime = br.ReadSingle();
 
                 int magic = br.ReadInt32();
                 Debug.Log(magic);

@@ -85,7 +85,14 @@ namespace Survivor
 
         public void ContinueGame()
         {
-            GameDataIO.Load(m_gameData);
+            if (GameDataIO.LoadLocal(m_gameData))
+            {
+                Debug.Log("loaded version 2");
+            }
+            else if (GameDataIO.LoadLocalVersion1(m_gameData))
+            {
+                Debug.Log("loaded version 1");
+            }
             SetMenuState(MENU_STATE.IN_GAME);
         }
 
