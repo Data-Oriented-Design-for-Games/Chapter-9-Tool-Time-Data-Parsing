@@ -7,6 +7,9 @@ public static class MetaDataIO
 {
     public static void Save(MetaData metaData)
     {
+        if (!Directory.Exists(Application.persistentDataPath + "/DODSurvivor"))
+            Directory.CreateDirectory(Application.persistentDataPath + "/DODSurvivor");
+
         string fileName = Application.persistentDataPath + "/DODSurvivor/metadata.dat";
         using (FileStream fs = File.Create(fileName))
         using (BinaryWriter bw = new BinaryWriter(fs))
@@ -26,7 +29,7 @@ public static class MetaDataIO
             using (var stream = File.Open(fileName, FileMode.Open))
             using (BinaryReader br = new BinaryReader(stream))
             {
-                int verison = br.ReadInt32();
+                int version = br.ReadInt32();
                 metaData.BestTime = br.ReadSingle();
                 metaData.MenuState = (MENU_STATE)br.ReadByte();
             }
